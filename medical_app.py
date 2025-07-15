@@ -1,19 +1,29 @@
 import os
 import re
 import streamlit as st
-from dotenv import load_dotenv
 import google.generativeai as genai
 from fpdf import FPDF
-import datetime
 import base64
 import PyPDF2
 from docx import Document
 import tempfile
 
+# --- Streamlit Config ---
+st.set_page_config(
+    page_title="Medical Helper",
+    page_icon="🩺",
+    layout="centered"
+)
 
-# --- Configuration ---
-load_dotenv()
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+# --- Secure Configuration ---
+try:
+    if 'GOOGLE_API_KEY' not in st.secrets:
+        st.error("❌ Missing Google API Key in secrets.toml")
+        st.stop()
+    genai.configure(api_key=st.secrets['GOOGLE_API_KEY'])
+except Exception as e:
+    st.error(f"🔴 Gemini API Error: {str(e)}")
+    st.stop()
 
 # --- Improved File Text Extraction ---
 def extract_text_from_file(uploaded_file):
