@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+*-checkpoint.*
+
+# Sensitive/System files
+.env
+.DS_Store
