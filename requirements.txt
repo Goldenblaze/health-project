@@ -1,6 +1,6 @@
 streamlit>=1.32.0
-google-generativeai>=0.3.0
-fpdf2>=2.7.5  # Note: fpdf2 (not fpdf)
+google-generativeai==0.3.2  # Pinned version
+fpdf2>=2.7.5
 PyPDF2>=3.0.0
 python-docx>=0.8.11
-protobuf==3.20.3
+protobuf==3.20.3  # Must be exactly this version

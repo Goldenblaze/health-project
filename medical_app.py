@@ -1,4 +1,6 @@
 import os
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+import base64
 import re
 import streamlit as st
 import google.generativeai as genai
@@ -181,7 +183,8 @@ def main():
                     """
                     
                     model = genai.GenerativeModel('gemini-1.5-flash')
-                    response = model.generate_content(prompt)
+                    # Initialize streaming
+                    response = model.generate_content(prompt, stream=True)
                     guide = response.text
                     
                     # Display guide
