@@ -3,7 +3,6 @@ import re
 import streamlit as st
 import google.generativeai as genai
 from fpdf import FPDF
-import base64
 import PyPDF2
 from docx import Document
 import tempfile

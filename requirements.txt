@@ -1,7 +1,6 @@
 streamlit>=1.32.0
 google-generativeai>=0.3.0
-python-dotenv>=1.0.0
-fpdf2>=2.7.5
+fpdf2>=2.7.5  # Note: fpdf2 (not fpdf)
 PyPDF2>=3.0.0
 python-docx>=0.8.11
-protobuf==3.20.3  # Must be pinned exactly
+protobuf==3.20.3
