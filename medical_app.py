@@ -18,10 +18,11 @@ st.set_page_config(
 
 # --- Secure Configuration ---
 try:
-    api_key = st.secrets['GOOGLE_API_KEY'].strip('"\'')  # 1. Removes accidental quotes
-    if not api_key.startswith('AI'):  # 2. Validates key format
+    api_key = st.secrets['GOOGLE_API_KEY'].strip('"\'')
+    if not api_key.startswith('AI'):
         st.error("⚠️ Key format looks wrong. Gemini keys start with 'AI'")
-    genai.configure(api_key=api_key)  # 3. Uses cleaned key
+        st.stop()
+    genai.configure(api_key=api_key)
 except Exception as e:
     st.error(f"Key Error: {str(e)}")
     st.stop()
@@ -45,14 +46,19 @@ def extract_text_from_file(uploaded_file):
         else:
             raw_text = uploaded_file.getvalue().decode("utf-8")
         
-        # Clean extracted text
-        cleaned_text = re.sub(r'(?<!\n)\n(?!\n)', ' ', raw_text)  # Replace single newlines
-        cleaned_text = re.sub(r'\s+', ' ', cleaned_text)  # Collapse spaces
+        cleaned_text = re.sub(r'(?<!\n)\n(?!\n)', ' ', raw_text)
+        cleaned_text = re.sub(r'\s+', ' ', cleaned_text)
         return cleaned_text.strip()
     
     except Exception as e:
         st.error(f"Error reading file: {str(e)}")
         return ""
+    finally:
+        try:
+            if 'tmp_path' in locals() and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+        except Exception as e:
+            st.warning(f"Couldn't delete temp file: {str(e)}")
 
 # --- Enhanced Red Flag Detection ---
 RED_FLAGS = {
@@ -75,37 +81,38 @@ def check_red_flags(text):
             return True
     return False
 
-# --- Fixed PDF Generation (Using Built-in Font) ---
+# --- Fixed PDF Generation ---
 def create_medical_pdf(symptoms, guide, filename="medical_summary.pdf"):
-    pdf = FPDF()
-    pdf.add_page()
-    
-    # Use built-in 'Helvetica' font instead of Arial
-    pdf.set_font("Helvetica", 'B', 16)
-    pdf.cell(0, 10, "Your Medical Visit Summary", 0, 1, 'C')
-    pdf.ln(5)
-    
-    # Content with forced ASCII encoding
-    pdf.set_font("Helvetica", size=11)
-    safe_text = guide.encode('ascii', 'replace').decode('ascii')
-    pdf.multi_cell(0, 7, f"Symptoms:\n{symptoms}".encode('ascii', 'replace').decode('ascii'))
-    pdf.ln(5)
-    pdf.multi_cell(0, 7, f"Guidance:\n{safe_text}")
-    
-    # Disclaimer
-    pdf.ln(10)
-    pdf.set_font("Helvetica", 'I', 8)
-    pdf.multi_cell(0, 5, "Disclaimer: This document is not medical advice. Always consult a healthcare professional.")
-    
-    pdf.output(filename)
-    return filename
+    try:
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Helvetica", 'B', 16)
+        pdf.cell(0, 10, "Your Medical Visit Summary", 0, 1, 'C')
+        pdf.ln(5)
+        
+        pdf.set_font("Helvetica", size=11)
+        safe_text = guide.encode('ascii', 'replace').decode('ascii')
+        pdf.multi_cell(0, 7, f"Symptoms:\n{symptoms}".encode('ascii', 'replace').decode('ascii'))
+        pdf.ln(5)
+        pdf.multi_cell(0, 7, f"Guidance:\n{safe_text}")
+        
+        pdf.ln(10)
+        pdf.set_font("Helvetica", 'I', 8)
+        pdf.multi_cell(0, 5, "Disclaimer: This document is not medical advice. Always consult a healthcare professional.")
+        
+        pdf.output(filename)
+        return filename
+    except Exception as e:
+        st.error(f"PDF generation failed: {str(e)}")
+        return None
 
 def show_pdf_preview(pdf_path):
     """Display PDF preview in Streamlit"""
-    with open(pdf_path, "rb") as f:
-        base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
-    st.markdown(pdf_display, unsafe_allow_html=True)
+    if pdf_path and os.path.exists(pdf_path):
+        with open(pdf_path, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
+        st.markdown(pdf_display, unsafe_allow_html=True)
 
 # --- Streamlit UI ---
 def main():
@@ -122,7 +129,6 @@ def main():
         help="1 = Very Simple, 5 = More Detailed"
     )
     
-    # Map slider to grade levels
     grade_levels = {1: "5th grade", 2: "7th grade", 3: "9th grade", 
                    4: "11th grade", 5: "College level"}
     selected_level = grade_levels[reading_level]
@@ -146,8 +152,7 @@ def main():
             st.text_area("Extracted Content", 
                         value=extracted_text, 
                         height=150, 
-                        label_visibility="collapsed",
-                        key="extracted_text_display")
+                        label_visibility="collapsed")
             symptoms = extracted_text
             
             if check_red_flags(symptoms):
@@ -164,7 +169,6 @@ def main():
         else:
             with st.spinner("Generating your personalized guide..."):
                 try:
-                    # Generate content with literacy level
                     prompt = f"""
                     You are a health assistant for patients seeing a {doctor_specialty}.
                     Given these symptoms: {symptoms}
@@ -183,29 +187,37 @@ def main():
                     """
                     
                     model = genai.GenerativeModel('gemini-1.5-flash')
-                    # Initialize streaming
                     response = model.generate_content(prompt, stream=True)
-                    guide = response.text
                     
-                    # Display guide
-                    st.markdown(f"## 📋 Your Guide ({selected_level} level)")
-                    st.write(guide)
+                    # Initialize streaming
+                    stream_placeholder = st.empty()
+                    full_response = []
                     
-                    # Generate and preview PDF
-                    pdf_path = create_medical_pdf(symptoms, guide)
-                    
-                    st.markdown("---")
-                    st.subheader("📄 PDF Preview")
-                    show_pdf_preview(pdf_path)
-                    
-                    # Download button
-                    with open(pdf_path, "rb") as f:
-                        st.download_button(
-                            "💾 Download Full Summary",
-                            f,
-                            file_name="medical_summary.pdf",
-                            mime="application/pdf"
+                    # Stream response chunks
+                    for chunk in response:
+                        full_response.append(chunk.text)
+                        stream_placeholder.markdown(
+                            f"## 📋 Your Guide ({selected_level} level)\n\n" + 
+                            "".join(full_response)
                         )
+                    
+                    # Get final response
+                    guide = "".join(full_response)
+                    
+                    # Generate PDF
+                    pdf_path = create_medical_pdf(symptoms, guide)
+                    if pdf_path:
+                        st.markdown("---")
+                        st.subheader("📄 PDF Preview")
+                        show_pdf_preview(pdf_path)
+                        
+                        with open(pdf_path, "rb") as f:
+                            st.download_button(
+                                "💾 Download Full Summary",
+                                f,
+                                file_name="medical_summary.pdf",
+                                mime="application/pdf"
+                            )
                 except Exception as e:
                     st.error(f"Generation failed: {str(e)}")
 
