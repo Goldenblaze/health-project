@@ -1,13 +1,7 @@
-# Core dependencies
-python>=3.8
-
-# Main packages
 streamlit>=1.32.0
-python-dotenv>=1.0.0
 google-generativeai>=0.3.0
+python-dotenv>=1.0.0
 fpdf2>=2.7.5
 PyPDF2>=3.0.0
 python-docx>=0.8.11
-
-# Version-pinned for compatibility
-protobuf==3.20.3  # Required by google-generativeai
+protobuf==3.20.3  # Must be pinned exactly
