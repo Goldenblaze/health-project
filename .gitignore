@@ -10,3 +10,7 @@ venv/
 # Sensitive/System files
 .env
 .DS_Store
+
+# Secrets
+.streamlit/secrets.toml
+*.env

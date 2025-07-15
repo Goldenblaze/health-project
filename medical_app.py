@@ -17,12 +17,12 @@ st.set_page_config(
 
 # --- Secure Configuration ---
 try:
-    if 'GOOGLE_API_KEY' not in st.secrets:
-        st.error("❌ Missing Google API Key in secrets.toml")
-        st.stop()
-    genai.configure(api_key=st.secrets['GOOGLE_API_KEY'])
+    api_key = st.secrets['GOOGLE_API_KEY'].strip('"\'')  # 1. Removes accidental quotes
+    if not api_key.startswith('AI'):  # 2. Validates key format
+        st.error("⚠️ Key format looks wrong. Gemini keys start with 'AI'")
+    genai.configure(api_key=api_key)  # 3. Uses cleaned key
 except Exception as e:
-    st.error(f"🔴 Gemini API Error: {str(e)}")
+    st.error(f"Key Error: {str(e)}")
     st.stop()
 
 # --- Improved File Text Extraction ---
